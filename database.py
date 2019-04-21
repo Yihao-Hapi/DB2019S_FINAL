@@ -339,3 +339,138 @@ def avgQuery():
                     print("No statistics found for "+desc[x])
                 else:
                     print("Average "+"{:60}".format(desc[x])[:60]+"{:6}".format(str(types[x]))[:6]+"    "+"{:6}".format(str(counts[x]))[:6])
+
+def Safest_Hospital():
+    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres'")
+    cur = conn.cursor()
+    while(1):
+        care = "ERROR" #type of care to search for
+
+        #initial prompt
+        print("\nSAFEST HOSPITAL SEARCH: Choose a type of care/service to search for:\n"+
+                "\t1. Heart attack-related care\n"+\
+                "\t2. Heart failure-realted care\n"+\
+                "\t3. Hip/Knee replacement\n"\
+                "\t4. Pneumonia treatment\n"\
+                "\tBACK. Return to MAIN prompt\n")
+        while(care == "ERROR"):
+            care = safeInput()
+            if (care not in ["1","2","3","4","BACK"]):
+                print("ERROR: invalid input")
+                care = "ERROR"
+        if (care == "BACK"): #BACK TO THE MAIN LOOP
+            break
+
+        destq = locationInner() #here so the client gets the prompts in the correct order
+
+        comptype = comptypes[int(care)-1]
+
+        compq = """(SELECT hospital.providerID, hospitalName, address, zip, compScore as score
+                        FROM hospital_comp INNER JOIN hospital
+                        ON hospital_comp.providerID = hospital.providerID
+                        WHERE measureID LIKE '"""+ comptype + "') as comp"
+
+        finalq = "SELECT comp.hospitalName, score, loc.address, loc.city, loc.state, comp.zip, loc.phone"+ \
+                    " FROM " + destq + compq + \
+                    " WHERE loc.pid = comp.providerID ORDER BY score ASC;"
+
+        cur.execute(finalq)
+        rows = cur.fetchall()
+        if(not rows):
+            print("\nNo results found")
+
+        safest = rows[0][1]
+        for row in rows:
+            if(row[1] == safest): #results found
+                #pid,name,address,city,state,phone,cost,score
+                print("\nNAME                SCORE    ADDRESS                         CITY            STATE    ZIP      PHONE")
+                print("{:<16}".format(row[0])[:16] + "    " + "{:<5}".format(row[1])[:5] + "    " +"{:<30}".format(row[2])[:28]+"    "+"{:<12}".format(row[3])[:12]+"    "+"{:<5}".format(row[4])[:5]+"    "+"{:<5}".format(row[5])[:5]+ "    "+row[6] )
+
+
+def Search_by_Budget():
+    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres'")
+    cur = conn.cursor()
+    while(1):
+        care = "ERROR" #type of care to search for
+
+        #initial prompt
+        print("\nBUDGET SEARCH: Choose a type of care/service to search for:\n"+
+                "\t1. Heart attack-related care\n"+\
+                "\t2. Heart failure-realted care\n"+\
+                "\t3. Hip/Knee replacement\n"\
+                "\t4. Pneumonia treatment\n"\
+                "\tBACK. Return to MAIN prompt\n")
+        while(care == "ERROR"):
+            care = safeInput()
+            if (care not in ["1","2","3","4","BACK"]):
+                print("ERROR: invalid input")
+                care = "ERROR"
+        if (care == "BACK"): #BACK TO THE MAIN LOOP
+            break
+
+        upper = "ERROR"
+        lower = "ERROR"
+        while(1):
+            print("\nBudget: Enter the UPPER limit of budget for this type of care/service:\n")
+            while(upper == "ERROR"):
+                upper = safeInput()
+                if (not upper.isdigit()):
+                    print("ERROR: invalid input")
+                    upper = "ERROR"
+
+            print("\nBudget: Enter the LOWER limit of budget for this type of care/service:\n")
+            while(lower == "ERROR"):
+                lower = safeInput()
+                if (not lower.isdigit()):
+                    print("ERROR: invalid input")
+                    lower = "ERROR"
+            if (int(upper) >= int(lower)):
+                break
+            else:
+                print("ERROR: upper limit is less than lower limit")
+                upper = "ERROR"
+                lower = "ERROR"
+
+        destq = locationInner() #here so the client gets the prompts in the correct order
+
+        paytype = paytypes[int(care)-1]
+        payq = """(SELECT hospital.providerID, paymentAmount, zip, hospitalName
+                    FROM hospital INNER JOIN hospital_payment
+                    ON hospital.providerID = hospital_payment.providerID
+                    WHERE paymentAmount <= """ + upper + " AND paymentAmount >= "+ lower + ") as pay"""
+
+        finalq = "SELECT pay.hospitalName, paymentAmount, loc.address, loc.city, loc.state, pay.zip, loc.phone"+ \
+                    " FROM " + destq + payq +\
+                    " WHERE loc.pid = pay.providerID ORDER BY paymentAmount ASC;"
+        cur.execute(finalq)
+        rows = cur.fetchall()
+
+        if(not rows):
+            print("\nNo results found")
+
+        count = 1
+        page = 0
+        print("\nNAME                COST    ADDRESS                         CITY            STATE    ZIP      PHONE")
+        for row in rows:
+            if (count <= 10):
+                #pid,name,address,city,state,phone,cost,score
+                print("{:<16}".format(row[0])[:16] + "    " + "{:<5}".format(row[1])[:5] + "   " +"{:<30}".format(row[2])[:28]+"    "+"{:<12}".format(row[3])[:12]+"    "+"{:<5}".format(row[4])[:5]+"    "+"{:<5}".format(row[5])[:5]+ "    "+row[6])
+                count += 1
+            else:
+                print("\nMessages %d to %d of %d" %(page*10+1, (page+1)*10, len(rows)))
+                print("Type 1 to go next page or type 2 to return to previous prompt")
+                go_next_page = "ERROR"
+                while(go_next_page == "ERROR"):
+                    go_next_page = safeInput()
+                    if (care not in ["1","2"]):
+                        print("ERROR: invalid input")
+                        care = "ERROR"
+                if (go_next_page == "1"):
+                    count = 1
+                    page += 1
+                else:
+                    break
+
+        if (count != 10):
+                #pid,name,address,city,state,phone,cost,score
+                print("\nMessages %d to %d of %d" %(page*10+1, len(rows), len(rows)))
