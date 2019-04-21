@@ -64,8 +64,8 @@ CREATE TABLE complication( --complications or deaths
 */
 CREATE TABLE time_range
 (
-    dateStart VARCHAR(255),    -- overlapped time start : the later one (HAD TO TEMPORARILY SWITCH THESE
+    dateStart TIMESTAMP,    -- overlapped time start : the later one (HAD TO TEMPORARILY SWITCH THESE
     						   -- PSYCOPG2 DOES NOT LIKE CONVERSIONS, NO SOLID CONVERSION TO SQL DATE TYPE FROM STRING)
-    dateEnd VARCHAR(255),      -- overlapped time end: the earlier one
+    dateEnd TIMESTAMP,      -- overlapped time end: the earlier one
     providerID VARCHAR(255) PRIMARY KEY UNIQUE
 );

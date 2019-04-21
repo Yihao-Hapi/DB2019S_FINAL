@@ -502,7 +502,7 @@ def deathrate_location():
     return locstr
 
 def deathrate_query():
-    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres' password= 'HYhSZqd'")
+    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres' password= 'postgres'")
     cur = conn.cursor()
     while(1):
         command = "ERROR"
