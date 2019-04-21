@@ -474,3 +474,78 @@ def Search_by_Budget():
         if (count != 10):
                 #pid,name,address,city,state,phone,cost,score
                 print("\nMessages %d to %d of %d" %(page*10+1, len(rows), len(rows)))
+
+#locaction inner query creator just for deathrate_query
+def deathrate_location():
+    zip = "ERROR"
+    state = "ERROR"
+    print("\nIf you know the zip code you want to search, enter here. \nOtherwise, please leave blank\n")
+    while(zip=="ERROR"):
+        zip = safeInput()
+        if(len(zip)>0 and len(zip)!=5):
+            print("ERROR: invalid input")
+            zip = "ERROR"
+    if (zip ==""):
+        print("\nIf you want to seach a specific state for hospitals, enter here.\nOtherwise, please leave blank\n")
+        while(state == "ERROR"):
+            state = safeInput()
+            if(len(state)>0 and len(state)!=2):
+                print("ERROR:invalid input")
+                state = "ERROR"
+    if(zip!=""):
+        locstr = "WHERE hospital.zip = '"+zip+"' and city.zip = '" + zip +"' and hospital.providerID = hospital_comp.providerID and hospital_comp.measureid like '"+ "MORT%'"
+    elif(state!=""):
+        locstr = "WHERE hospital.zip = city.zip and city.stateName = '" +state +"' and hospital.providerID = hospital_comp.providerID and hospital_comp.measureid like '"+"MORT%'"
+    else:
+        return "(select hospital.providerID as pid, hospital.hospitalName as name, hospital.zip as zipcode, city.stateName as state, hospital_comp.compscore as score, hospital_comp.quantity as quantity, hospital_comp.measureid as measureid from hospital, city, hospital_comp where hospital.zip = city.zip and hospital.providerID = hospital_comp.providerID and hospital_comp.measureid like 'MORT%') as loc"
+    locstr = "(select hospital.providerID as pid, hospital.hospitalName as name, hospital.zip as zipcode, city.stateName as state, hospital_comp.compscore as score, hospital_comp.quantity as quantity, hospital_comp.measureid as measureid from hospital, city, hospital_comp "+locstr+") as loc"
+    return locstr
+
+def deathrate_query():
+    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres' ")
+    cur = conn.cursor()
+    while(1):
+        command = "ERROR"
+        number  = "ERROR"
+        print("\nDEATHRATE SEARCH: Choose how death-rate data is sorted:\n" + \
+                "\t1. Highest number of data points first\n" + \
+                "\t2. Best complications score first (safest)\n" + \
+                "\tBACK. Return to MAIN prompt\n")
+
+        while(command == "ERROR"):
+            command = safeInput()
+            if(command not in ["1","2","BACK"]):
+                print("ERROR: invalid input")
+                command = "ERROR"
+
+        if(command == "BACK"):
+            break
+
+        print("\nPlease enter maximum number of hospitals to retrieve\n")
+        while(number == "ERROR"):
+            number = safeInput()
+            if(not number.isdigit()):
+                print("ERROR: invalid input")
+                number = "ERROR"
+
+        tmpq = deathrate_location()
+        if(command == "1"):
+            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.quantity desc limit "+number+";"
+        elif(command == "2"):
+            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.score limit "+number+";"
+        #print(finalq)
+        cur.execute(finalq)
+        rows = cur.fetchall()
+        l = []
+        if(rows):
+            print("\nProviderID   Name                                                                              State       Score       Quantity    Measureid")
+            for a,b,c,d,e,f in rows:
+                print ("{:<9}".format(a)[:9] + "    "+"{:<80}".format(b)[:80 ] + "  " + "{:<10}".format(c)[:10 ]+ "  " + "{:<10}".format(d)[:10 ]+ "  " + "{:<10}".format(e)[:10 ]+ "  " + "{:<10}".format(f)[:10 ])
+            print("\nMORT_30_AMI: Acute Myocardial Infarction (AMI) 30-Day Mortality Rate\n" +\
+                "MORT_30_HF: Heart Failure (HF) 30-Day Mortality Rate\n" +\
+                "MORT_30_PN: Pneumonia (PN) 30-Day Mortality Rate\n" +\
+                "MORT_30_CABG: Hospital 30-Day Mortality Rate Following Coronary Artery Bypass Graft (CABG) Surgery\n" +\
+                "MORT_30_COPD: Hospital 30-Day Mortality Rate Following Chronic Obstructive Pulmonary Disease (COPD) Hospitalization\n"+\
+                "MORT_30_ST(K): Hospital 30-Day Mortality Rate Following Acute Ischemic")
+        else:
+            print("\nNo results found\n")
