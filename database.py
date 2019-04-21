@@ -502,14 +502,14 @@ def deathrate_location():
     return locstr
 
 def deathrate_query():
-    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres' ")
+    conn = psycopg2.connect("dbname = 'postgres' user = 'postgres' password= 'HYhSZqd'")
     cur = conn.cursor()
     while(1):
         command = "ERROR"
         number  = "ERROR"
-        print("\nDEATHRATE SEARCH: Choose how death-rate data is sorted:\n" + \
-                "\t1. Highest number of data points first\n" + \
-                "\t2. Best complications score first (safest)\n" + \
+        print("\nDEATHRATE SEARCH: Please choose the types of hospitals to retrieve:\n" + \
+                "\t1. Hospitals with the highest number of subjects per figure/data\n" + \
+                "\t2. Hospitals with the best complication scores first (safest)\n" + \
                 "\tBACK. Return to MAIN prompt\n")
 
         while(command == "ERROR"):
@@ -520,7 +520,7 @@ def deathrate_query():
 
         if(command == "BACK"):
             break
-
+        current_hospital = []
         print("\nPlease enter maximum number of hospitals to retrieve\n")
         while(number == "ERROR"):
             number = safeInput()
@@ -530,22 +530,32 @@ def deathrate_query():
 
         tmpq = deathrate_location()
         if(command == "1"):
-            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.quantity desc limit "+number+";"
+            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.quantity DESC;"
         elif(command == "2"):
-            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.score limit "+number+";"
+            finalq = "SELECT loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq +" order by loc.score;"
         #print(finalq)
         cur.execute(finalq)
         rows = cur.fetchall()
-        l = []
         if(rows):
             print("\nProviderID   Name                                                                              State       Score       Quantity    Measureid")
             for a,b,c,d,e,f in rows:
-                print ("{:<9}".format(a)[:9] + "    "+"{:<80}".format(b)[:80 ] + "  " + "{:<10}".format(c)[:10 ]+ "  " + "{:<10}".format(d)[:10 ]+ "  " + "{:<10}".format(e)[:10 ]+ "  " + "{:<10}".format(f)[:10 ])
+                if (len(current_hospital)==int(number)):
+                    break
+                if(a not in current_hospital):
+                    current_hospital.append(a)
+                #print ("{:<9}".format(a)[:9] + "    "+"{:<80}".format(b)[:80 ] + "  " + "{:<10}".format(c)[:10 ]+ "  " + "{:<10}".format(d)[:10 ]+ "  " + "{:<10}".format(e)[:10 ]+ "  " + "{:<20}".format(f)[:20 ])
+            for  hospital in current_hospital:
+                cur_command = "SELECT  loc.pid,loc.name,loc.state,loc.score,loc.quantity,loc.measureid" + " FROM " + tmpq + " where loc.pid = '" +hospital +"';"
+                cur.execute(cur_command)
+                result = cur.fetchall()
+                for pid,name,state,score,quantity,measureid in result:
+                    print ("{:<9}".format(pid)[:9] + "    "+"{:<80}".format(name)[:80 ] + "  " + "{:<10}".format(state)[:10 ]+ "  " + "{:<10}".format(score)[:10 ]+ "  " + "{:<10}".format(quantity)[:10 ]+ "  " + "{:<20}".format(measureid)[:20 ])
             print("\nMORT_30_AMI: Acute Myocardial Infarction (AMI) 30-Day Mortality Rate\n" +\
                 "MORT_30_HF: Heart Failure (HF) 30-Day Mortality Rate\n" +\
                 "MORT_30_PN: Pneumonia (PN) 30-Day Mortality Rate\n" +\
                 "MORT_30_CABG: Hospital 30-Day Mortality Rate Following Coronary Artery Bypass Graft (CABG) Surgery\n" +\
                 "MORT_30_COPD: Hospital 30-Day Mortality Rate Following Chronic Obstructive Pulmonary Disease (COPD) Hospitalization\n"+\
                 "MORT_30_ST(K): Hospital 30-Day Mortality Rate Following Acute Ischemic")
+           # print(current_hospital)
         else:
-            print("\nNo results found\n")
+            print("\nNo results found!\n")
